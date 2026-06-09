@@ -1,0 +1,21 @@
+{
+  "name": "ians-skill",
+  "owner": {
+    "name": "ianho7"
+  },
+  "metadata": {
+    "description": "Personal AI Skills Collection",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "ians-skill",
+      "description": "Personal Skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/session-handoff"
+      ]
+    }
+  ]
+}
