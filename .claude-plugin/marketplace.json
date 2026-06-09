@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "ians-skill",
   "owner": {
     "name": "ianho7"
@@ -14,7 +14,10 @@
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/session-handoff"
+        ".skills/checklist",
+        ".skills/image/newmasus-image-skill",
+        ".skills/plan",
+        ".skills/session-handoff"
       ]
     }
   ]
