@@ -16,6 +16,7 @@
       "skills": [
         ".skills/checklist",
         ".skills/image/newmasus-image-skill",
+        ".skills/mvp-plan",
         ".skills/plan",
         ".skills/session-handoff"
       ]
