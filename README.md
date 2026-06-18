@@ -186,6 +186,155 @@ Use when you think:
 | We already know the workflow to codify | `write-high-quality-skill` |
 | This case deserves a write-up | `case-study-writing` |
 
+
+## Diagnostic Decision Stack
+
+The newer skills below form a smaller, more tactical sub-system inside the repo.
+
+They are not mainly about planning delivery work or extracting a finished case into documentation.
+They are about handling difficult engineering uncertainty in the middle of real work.
+
+This stack is useful when the problem is not “how do we implement this” but rather:
+
+- what is actually going wrong
+- which direction is worth pursuing first
+- whether the gain is worth the loss
+- how should we compare the remaining options without testing everything
+- what the finished experiment results actually mean
+
+### The Stack
+
+```text
+a vague slowdown / regression / unclear system problem
+→ bounded-diagnosis-loop
+→ optional benchmark-fixture-replay
+→ optimization-prioritization
+→ optional quality-cost-tradeoff-review
+→ experiment-matrix-design
+→ experiment-result-interpretation
+```
+
+### What Each Skill Does
+
+#### `bounded-diagnosis-loop`
+
+Use this when the problem is still unclear.
+
+Its job is to:
+
+- bound the scope
+- establish the primary evidence source
+- build a repeatable feedback loop
+- generate falsifiable hypotheses
+- add only the minimum instrumentation needed
+- validate one hypothesis at a time
+
+This is the entry point for unclear engineering problems.
+
+#### `benchmark-fixture-replay`
+
+Use this when running the full real workflow every time is too painful, and you want to save one real case so you can replay it again and again.
+
+In plain terms, this means:
+
+- the real path is slow
+- the real path has too many steps
+- the real path depends on too many moving parts
+- but one real case is worth saving for repeat testing
+
+Its job is to:
+
+- choose where to save that real case
+- define exactly what files or inputs should be saved
+- create a short replay path for future runs
+- explain what the replay still represents well
+- explain when the full real workflow still needs to be rerun
+
+This is the replay and saved-real-case layer.
+
+#### `optimization-prioritization`
+
+Use this after diagnosis is mature enough that multiple candidate directions exist.
+
+Its job is to:
+
+- rank optimization directions by user-visible value
+- compare expected impact, risk, cost, and tradeoffs
+- identify false wins
+- recommend what is worth doing first
+- explicitly defer what is not worth doing yet
+
+This is the decision layer.
+
+#### `quality-cost-tradeoff-review`
+
+Use this when the main question is not just which direction ranks first, but whether a gain is worth its visible or meaningful cost.
+
+Its job is to:
+
+- evaluate speed versus quality, simplicity, correctness, or experience tradeoffs
+- define acceptable and unacceptable degradation boundaries
+- expose hidden costs and false tradeoffs
+- recommend whether the gain is worth shipping now
+
+This is the tradeoff judgment layer.
+
+#### `experiment-matrix-design`
+
+Use this when the next problem is not “which direction matters most” but “how should we compare the remaining options efficiently”.
+
+Its job is to:
+
+- turn a large configuration or option space into a reduced matrix
+- keep the number of runs small
+- preserve useful baselines
+- define scenario purpose and measurement rules
+- recommend the first round of experiments
+
+This is the structured comparison layer.
+
+#### `experiment-result-interpretation`
+
+Use this after experiment runs have completed and the main problem is deciding what the results actually mean.
+
+Its job is to:
+
+- first turn messy raw output into a structured comparison summary
+- validate whether the comparison was meaningful
+- separate strong signal from weak signal or noise
+- classify the result as win, loss, mixed, inconclusive, or invalid
+- explain metric conflicts
+- recommend the next move
+
+This is the results interpretation layer.
+
+### Why This Is A Separate System
+
+These skills solve a different class of problem from `plan`, `mvp-plan`, or `checklist`.
+
+They are for cases where:
+
+- implementation is premature
+- evidence quality matters more than coding speed
+- the main risk is wrong diagnosis or wrong prioritization
+- the problem has too many plausible options
+- the result needs interpretation before execution can continue
+
+In other words:
+
+- `plan` and `checklist` help when the route is known enough to execute
+- this stack helps when the route is not yet trustworthy enough to execute
+
+### Quick Selection Guide
+
+| Situation | Use |
+| --- | --- |
+| The issue is real, but the cause is unclear | `bounded-diagnosis-loop` |
+| Running the full workflow every time is too painful, and we want to save one real case for repeat testing | `benchmark-fixture-replay` |
+| We already have several plausible directions and need to choose what matters most | `optimization-prioritization` |
+| The key question is whether a gain is worth the visible or meaningful loss | `quality-cost-tradeoff-review` |
+| We already know what options deserve comparison and need a compact test matrix | `experiment-matrix-design` |
+| The experiments are done, the raw output is messy, and we need to structure and interpret the results correctly | `experiment-result-interpretation` |
 ## Mental Model
 
 ```text
@@ -224,3 +373,7 @@ Preserve the decisions.
 Extract the method.
 
 Reuse the method in the next session.
+
+
+
+

@@ -14,12 +14,18 @@
                         "source":  "./",
                         "strict":  false,
                         "skills":  [
+                                       ".skills/benchmark-fixture-replay",
+                                       ".skills/bounded-diagnosis-loop",
                                        ".skills/case-study-writing",
                                        ".skills/checklist",
+                                       ".skills/experiment-matrix-design",
+                                       ".skills/experiment-result-interpretation",
                                        ".skills/extract-skill-from-case",
                                        ".skills/image/newmasus-image-skill",
                                        ".skills/mvp-plan",
+                                       ".skills/optimization-prioritization",
                                        ".skills/plan",
+                                       ".skills/quality-cost-tradeoff-review",
                                        ".skills/session-handoff",
                                        ".skills/write-high-quality-skill"
                                    ]
