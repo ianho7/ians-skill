@@ -1,25 +1,28 @@
 ﻿{
-  "name": "ians-skill",
-  "owner": {
-    "name": "ianho7"
-  },
-  "metadata": {
-    "description": "Personal AI Skills Collection",
-    "version": "0.1.0"
-  },
-  "plugins": [
-    {
-      "name": "ians-skill",
-      "description": "Personal Skills",
-      "source": "./",
-      "strict": false,
-      "skills": [
-        ".skills/checklist",
-        ".skills/image/newmasus-image-skill",
-        ".skills/mvp-plan",
-        ".skills/plan",
-        ".skills/session-handoff"
-      ]
-    }
-  ]
+    "name":  "ians-skill",
+    "owner":  {
+                  "name":  "ianho7"
+              },
+    "metadata":  {
+                     "description":  "Personal AI Skills Collection",
+                     "version":  "0.1.0"
+                 },
+    "plugins":  [
+                    {
+                        "name":  "ians-skill",
+                        "description":  "Personal Skills",
+                        "source":  "./",
+                        "strict":  false,
+                        "skills":  [
+                                       ".skills/case-study-writing",
+                                       ".skills/checklist",
+                                       ".skills/extract-skill-from-case",
+                                       ".skills/image/newmasus-image-skill",
+                                       ".skills/mvp-plan",
+                                       ".skills/plan",
+                                       ".skills/session-handoff",
+                                       ".skills/write-high-quality-skill"
+                                   ]
+                    }
+                ]
 }
