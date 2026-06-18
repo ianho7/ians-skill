@@ -1,4 +1,4 @@
----
+﻿---
 name: case-study-writing
 description: >
   Turn a completed engineering case, debugging session, performance optimization, architecture
@@ -226,12 +226,16 @@ What this article is about:
 What this article is not about:
 Target reader:
 Reader takeaway:
+Main narrative line:
+Supporting thread:
 ```
 
 Completion criterion:
 
 * The article has one main promise.
 * Secondary topics support the main promise instead of hijacking it.
+* If the user has not made the primary angle clear enough, the agent asks before drafting.
+* The draft has one main narrative line and any secondary thread is explicitly subordinate.
 
 ---
 
@@ -287,6 +291,16 @@ Completion criterion:
 
 Create one article outline before drafting.
 
+Use this base structure unless the case clearly needs a different shape.
+
+Before locking the outline, explicitly mark:
+
+- which sections are core and deserve the most space
+- which sections are supporting context only
+- which sections should stay short even if the underlying process was long
+
+Do not let every section become equally important. If everything is treated as a headline, the article will feel long without feeling focused.
+
 Use this base structure unless the case clearly needs a different shape:
 
 ```markdown
@@ -324,6 +338,7 @@ For a performance optimization case, adjust the outline by:
 * making "Evidence, Measurements, Or Reports" include baseline, stage timing, benchmarks, or configuration comparisons
 * making "Options Compared" include performance benefit, complexity, risk, maintainability, and rollback cost
 * making "Result, Remaining Risks, And Limits" include before/after metrics and unmeasured areas
+* getting to the first real technical bottleneck quickly instead of spending too much space on setup or background
 
 For an AI agent workflow case, adjust the outline by:
 
@@ -345,6 +360,8 @@ Completion criterion:
 * There is only one active outline.
 * Case-specific adjustments modify the base outline instead of replacing it with a competing structure.
 * The article has a clear beginning, middle, and end.
+* The article reaches the core technical problem early enough.
+* Side topics do not consume the same weight as the main thread.
 
 ---
 
@@ -378,6 +395,18 @@ Use tables when they make the reasoning clearer:
 * rejected alternatives
 * final tradeoff summary
 
+Actively look for places where a figure, chart, flow diagram, or compact table would improve comprehension.
+
+Especially consider visuals when the article contains:
+
+* multiple benchmark or timing comparisons
+* baseline vs variant comparisons
+* configuration or experiment matrix comparisons
+* option evaluation and tradeoff decisions
+* workflow loops or investigation paths that are easier to understand visually
+
+If a visual would materially reduce explanation burden, explicitly note the opportunity in the draft instead of leaving it implicit.
+
 Writing style:
 
 * Be specific.
@@ -388,12 +417,16 @@ Writing style:
 * Keep the role of skills or agents concrete.
 * Avoid excessive ornament when the article needs evidence.
 * Do not flatten the story into a dry changelog.
+* Get to the core theme early instead of spending too long on preamble.
+* Keep secondary material disciplined so the article does not become “all important sections, therefore no clear focus.”
 
 Completion criterion:
 
 * The draft explains both what happened and why decisions were made.
 * The article is useful even to someone who does not know the original project.
 * The role of skills or agents is specific, not promotional.
+* The draft reaches the main technical thread early enough.
+* The article can be written and refined in stages if the case is long or evidence-heavy, rather than forcing a single monolithic drafting pass.
 
 ---
 
@@ -408,6 +441,8 @@ Use this checklist:
 | Problem clarity    | Can a reader understand the original pain point?                          |
 | Evidence           | Are major claims backed by data, logs, reports, or explicit observations? |
 | Scope              | Is the article focused on one main angle?                                 |
+| Narrative priority | Does the article clearly distinguish the main thread from supporting material? |
+| Front-loaded value | Does the article reach the core technical problem early enough?                |
 | Tradeoffs          | Does it explain why the final option was chosen over alternatives?        |
 | Skill usage        | Does it explain how skills helped without exaggerating them?              |
 | Human judgment     | Does it show where the user made key decisions?                           |
@@ -417,6 +452,13 @@ Use this checklist:
 | Non-marketing tone | Does it avoid sounding like an AI tool advertisement?                     |
 
 If the draft fails any important check, revise it.
+
+Pay special attention to these failure modes:
+
+- the article spends too long warming up before reaching the main technical problem
+- several themes are treated like co-equal main stories
+- useful but secondary material consumes too much space
+- the article describes many interesting details but leaves the reader unclear about the real point
 
 Completion criterion:
 
@@ -634,6 +676,10 @@ Avoid motivational fluff.
 
 Do not:
 
+* let the article drift into multiple competing main topics without explicitly choosing one
+* spend so long on background that the article reaches the core problem too late
+* treat every interesting branch as equally worthy of full expansion
+* miss obvious opportunities for visuals when comparisons, measurements, or tradeoffs are central
 * invent data
 * hide uncertainty
 * write a generic tutorial if the user asked for a case study
