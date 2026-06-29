@@ -1,0 +1,4 @@
+interface:
+  display_name: "Loop Engineering"
+  short_description: "Design agent loops that converge"
+  default_prompt: "Use $loop-engineering to design a closed-loop agent that can make progress, validate itself, recover from failure, and stop for the right reasons."
