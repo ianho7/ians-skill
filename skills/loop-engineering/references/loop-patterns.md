@@ -3,12 +3,17 @@
 ## Contents
 
 1. Core Definition
-2. Layer Choice
-3. Workflow-Level Pattern
-4. Runtime-Level Pattern
-5. Failure Semantics
-6. Anti-Patterns
-7. Review Checklist
+2. Three Nested Loops
+3. Cadence By Loop Layer
+4. Layer Choice
+5. Workflow-Level Pattern
+6. Runtime-Level Pattern
+7. Skill Composition Pattern
+8. Context Advantage
+9. Spec/Evals As Interface
+10. Failure Semantics
+11. Anti-Patterns
+12. Review Checklist
 
 ## Core Definition
 
@@ -23,6 +28,32 @@ Treat it as the engineering of a closed loop:
 - Decide whether to continue, change strategy, stop, or hand off
 
 The standard to optimize is not duration. It is convergence.
+
+## Three Nested Loops
+
+For product-building with coding agents, treat loop engineering as three nested loops:
+
+- Agentic coding loop: agent and spec/evals iterate on implementation
+- Developer feedback loop: developer vision updates spec, scope, and evals
+- External feedback loop: user and market signals update developer vision
+
+The loops are nested because each slower loop changes the target or constraints of the faster loop inside it.
+
+## Cadence By Loop Layer
+
+Typical cadence:
+
+- Coding loop: minutes
+- Developer feedback loop: hours
+- External feedback loop: days or longer
+
+Do not force all problems into the fastest loop.
+
+- Implementation errors belong in the coding loop.
+- Product tradeoffs belong in the developer loop.
+- Value and adoption questions belong in the external loop.
+
+When a slow-loop problem is handled in a fast loop, the system usually produces local optimization without global progress.
 
 ## Layer Choice
 
@@ -92,6 +123,39 @@ The loop should not regenerate all planning artifacts each round. It should cons
 
 This pattern fits systems similar to the article's `orca` example.
 
+## Context Advantage
+
+Humans are not only approval gates or last-resort reviewers.
+
+In outer loops, humans often have a context advantage:
+
+- user knowledge
+- product taste
+- business constraints
+- edge cases from experience
+- implicit quality bars
+
+When the agent lacks this context, more coding-loop iteration does not solve the problem. The loop must absorb new context through updated vision, spec, or evals.
+
+## Spec/Evals As Interface
+
+`spec/evals` is the critical interface between the developer loop and the coding loop.
+
+Treat it as a durable artifact, not a disposable prompt:
+
+- Spec compresses intent into actionable requirements
+- Evals compress quality expectations into repeatable checks
+
+Repeated mistakes usually mean the interface artifact is weak.
+
+Prefer:
+
+- updating the spec when intent is unclear
+- adding or refining evals when quality regressions repeat
+- moving human feedback into artifacts the inner loop can reuse
+
+instead of repeatedly telling the agent the same thing in chat.
+
 ## Failure Semantics
 
 Every loop should distinguish at least these failure classes:
@@ -115,10 +179,13 @@ Good loops cap retries by failure class, not just globally.
 - Scope inflation: the loop keeps expanding the objective because no MVP boundary exists
 - Planning amnesia: the agent writes a good plan once, then ignores it during execution
 - Goal misuse: `/goal` is used for persistence before objective, verifier, and exits are clear
+- Product ambiguity inside the coding loop: the agent keeps implementing against a target that should have been revised by the developer loop
+- Feedback evaporation: external or human feedback is observed once but never converted into spec, evals, or decision records
 
 ## Review Checklist
 
 - Is the goal concrete and externally verifiable?
+- Is the active problem in the right loop layer?
 - Is there a durable state boundary?
 - Is the next step derived from state and evidence?
 - Is there an independent verifier?
@@ -126,3 +193,4 @@ Good loops cap retries by failure class, not just globally.
 - Are blocked, failed, paused, and completed distinct?
 - Can a human inspect the current reason for continuing?
 - Can the system stop safely for success, risk, budget, or handoff?
+- Does human or external feedback become updated vision, spec, or eval artifacts?

@@ -30,6 +30,44 @@ Do not let this skill replace the others.
 - `$checklist` decides the task granularity and execution order.
 - `loop-engineering` decides how the system keeps making progress when reality diverges from the first plan.
 
+## Three Nested Loops
+
+Treat coding work as three loops running at different speeds:
+
+1. Agentic coding loop:
+   The agent implements, tests, inspects outputs, and iterates on code.
+2. Developer feedback loop:
+   The developer reviews the product or implementation, updates the spec, changes priorities, and sharpens the evals.
+3. External feedback loop:
+   Users, testers, production signals, or market feedback update the developer's product vision.
+
+Use this skill primarily for the first loop, but never pretend the first loop is the whole system.
+
+- The coding loop optimizes implementation convergence.
+- The developer loop optimizes product decision convergence.
+- The external loop optimizes whether the right thing is being built at all.
+
+When the inner loop is healthy but the task still feels directionless, the problem is usually in an outer loop.
+
+## Loop Interfaces
+
+The loops matter, but the interfaces between them matter more:
+
+- `developer vision -> product spec/evals`
+  Translate human intent into constraints the coding loop can execute and verify.
+- `product spec/evals -> coding agent`
+  Feed the agent concrete behavior targets and evidence standards.
+- `external feedback -> developer vision`
+  Turn user reactions, usage data, and qualitative signals into product changes.
+
+Design these interfaces explicitly.
+
+- A vague spec forces the coding loop to guess.
+- Missing evals force the verifier to improvise.
+- Unprocessed user feedback forces the developer loop to rely on taste without evidence.
+
+When repeated issues appear, prefer tightening the interface artifact over repeating natural-language reminders.
+
 ## Choose The Loop Level
 
 - Use a workflow-level loop for multi-stage pipelines, DAG execution, role handoffs, stage gates, and revision routing.
@@ -106,6 +144,26 @@ When the task is long enough to justify `/goal`, bind the loop spec to goal sema
 
 Treat `/goal` as the persistence layer for intent, not as the design of the loop itself.
 
+## When To Escalate Out Of The Coding Loop
+
+Do not keep the agent in the coding loop when the real blocker is outside that loop.
+
+Escalate to the developer feedback loop when:
+
+- The current spec is underspecified or contradictory
+- Multiple product directions look valid
+- The implementation is close, but UX or flow tradeoffs are unresolved
+- The same issue recurs because the eval is weak or missing
+- The agent can satisfy the letter of the spec but not the intent
+
+Escalate to the external feedback loop when:
+
+- The product works against the current spec, but user value is still uncertain
+- The team is arguing from opinion instead of evidence
+- Real usage, alpha feedback, or experiments are cheaper than more internal iteration
+
+The stop condition for one loop is often the handoff condition for another.
+
 ## Build The Minimal Closed Loop
 
 - Start with the smallest loop that can prove convergence. Do not design the maximum future platform first.
@@ -158,6 +216,7 @@ Treat `/goal` as the persistence layer for intent, not as the design of the loop
 - Refuse self-certification. "The agent said DONE" is not evidence.
 - Define what constitutes progress, not just completion.
 - Prefer cheap verifiers before expensive ones: focused test, then broader suite, then manual review if needed.
+- Treat evals as a long-lived interface artifact. If the same bug class repeats, improve the eval instead of only fixing the current instance.
 
 ### Failure Recovery
 
@@ -207,6 +266,8 @@ Use `/goal` when most of these are true:
 - You want explicit complete vs blocked lifecycle
 
 Do not use `/goal` just because the task sounds important. Use it when persistence and repeated decision-making actually matter.
+
+Do not use `/goal` to preserve product ambiguity. First decide whether the ambiguity belongs in scope, spec, or external feedback.
 
 ## Coding Loop Template
 
@@ -287,3 +348,5 @@ If implementing code, map the design to concrete files, state containers, and ve
 - The loop regenerates plans each round but never commits to one executable next task
 - `/goal` is created before scope is cut down, so the agent persists a bloated objective
 - Planning skills are used as one-shot documents and never feed the next-round decision logic
+- Product ambiguity is treated as an implementation problem, so the coding loop keeps churning on the wrong target
+- Repeated human feedback never becomes updated spec or eval artifacts
