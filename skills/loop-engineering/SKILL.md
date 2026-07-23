@@ -1,352 +1,382 @@
 ---
 name: loop-engineering
-description: Design, review, or implement coding-agent closed loops for long-running software tasks. Use when Codex needs to combine scoped planning, iterative code changes, verification, failure recovery, and stop conditions across multiple rounds instead of relying on one-shot prompting. Trigger for requests about Loop Engineering during coding, Codex `/goal` workflows, agentic implementation loops, retry logic, verifiers, pause/resume, task runners, state machines, "how should the next step be chosen", "why is this coding agent still running", "how does this recover from test failures", or "when should this stop". Use especially when the work should coordinate with `$mvp-plan`, `$plan`, `$checklist`, or goal-based execution.
+description: Design, review, or run evidence-driven closed loops for long-running coding-agent implementation or incident work. Use when a task needs multiple rounds, independent verification, durable state, recovery rules, and explicit complete, mitigated, or blocked exits. Supports Codex `/goal` as an optional adapter.
+
 ---
 
 # Loop Engineering
 
-## Overview
+Treat the task as a closed loop, not a `while true`:
 
-Treat the task as a closed loop, not a `while true`.
+```text
+act -> observe -> verify -> update durable state -> continue | switch | stop | hand off
+```
 
-Optimize for one question on every round: why should the system continue, and what evidence changes the next decision.
+Optimize for convergence. On every round, be able to answer:
 
-Read [references/loop-patterns.md](./references/loop-patterns.md) when you need concrete architecture patterns, layer choices, or anti-patterns.
+> What new evidence justifies the next action, and what evidence would make us stop?
 
-## Default Usage In Coding Work
+Read [references/loop-patterns.md](./references/loop-patterns.md) when you need architecture patterns, loop-layer choice, or anti-patterns.
 
-Use this skill as the loop orchestrator around other planning skills:
+## Scope, Portability, and Optional Adapters
 
-1. Use `$mvp-plan` to cut scope to the smallest shippable loop.
-2. Use `$plan` to turn that scope into an implementation path grounded in the repo.
-3. Use `$checklist` to break the path into atomic execution and validation tasks.
-4. Use this skill to decide how those tasks become a multi-round coding loop with state, verifier, retries, and exits.
-5. Use Codex `/goal` when the task is long-running enough that the agent should keep pushing toward the same objective across rounds.
+Use this skill as an agent-agnostic loop orchestrator. Do not present it as a root-cause oracle or an incident-diagnosis executor. It works with any coding agent that can inspect, act, observe, and persist a small amount of state.
 
-Do not let this skill replace the others.
+Other Skills are optional capability adapters, not required dependencies:
 
-- `$mvp-plan` decides what not to build.
-- `$plan` decides the intended implementation path.
-- `$checklist` decides the task granularity and execution order.
-- `loop-engineering` decides how the system keeps making progress when reality diverges from the first plan.
+| Needed capability                        | Preferred adapter, if available | Fallback when unavailable                                    |
+| ---------------------------------------- | ------------------------------- | ------------------------------------------------------------ |
+| Cut scope                                | `$mvp-plan`                     | Put an explicit in-scope / out-of-scope boundary in the Loop Spec. |
+| Map work to a repository                 | `$plan`                         | Inspect the relevant files and write the smallest executable phase list. |
+| Break work into atomic tasks             | `$checklist`                    | Keep a short ordered task list in durable loop state. Do not require auto-generated reflections. |
+| Build a red-capable minimal reproduction | `$diagnosing-bugs`              | Do not start speculative fixes. Gather raw evidence, narrow the observation surface, or stop as blocked until a falsifiable probe exists. |
 
-## Three Nested Loops
+`loop-engineering` consumes whichever artifacts exist and turns them into repeated decisions with state, verification, recovery, and exits. It must work when none of the optional adapters is installed.
 
-Treat coding work as three loops running at different speeds:
+For an ambiguous incident, use both diagnostic and loop concerns in this order:
 
-1. Agentic coding loop:
-   The agent implements, tests, inspects outputs, and iterates on code.
-2. Developer feedback loop:
-   The developer reviews the product or implementation, updates the spec, changes priorities, and sharpens the evals.
-3. External feedback loop:
-   Users, testers, production signals, or market feedback update the developer's product vision.
+```text
+symptom -> minimal reproduction / probe -> evidence boundary
+        -> loop state + next-action rule -> mitigation or repair -> independent acceptance
+```
 
-Use this skill primarily for the first loop, but never pretend the first loop is the whole system.
+`loop-engineering` must not claim that a proxy check proves the user-facing symptom is fixed. If no probe covers that symptom, record the gap and keep the final acceptance gate open.
 
-- The coding loop optimizes implementation convergence.
-- The developer loop optimizes product decision convergence.
-- The external loop optimizes whether the right thing is being built at all.
+### Platform Adapters
 
-When the inner loop is healthy but the task still feels directionless, the problem is usually in an outer loop.
+Use Codex `/goal` as an optional persistence container when it exists and the task spans many rounds. In another agent environment, use the equivalent durable task, issue, state file, or handoff artifact. The platform container does not replace the planner, verifier, retry policy, or exit semantics.
 
-## Loop Interfaces
+## When Not to Use the Full Loop
 
-The loops matter, but the interfaces between them matter more:
+Do not create a full Loop Spec, durable state object, or evidence harness for a trivial one-shot task.
 
-- `developer vision -> product spec/evals`
-  Translate human intent into constraints the coding loop can execute and verify.
-- `product spec/evals -> coding agent`
-  Feed the agent concrete behavior targets and evidence standards.
-- `external feedback -> developer vision`
-  Turn user reactions, usage data, and qualitative signals into product changes.
+Use a normal edit-and-verify pass when all are true:
 
-Design these interfaces explicitly.
+- one small, reversible change is sufficient;
+- a focused verifier already covers the requested behavior;
+- no retry, strategy switch, cross-session state, or handoff is expected;
+- the task can finish in one short action/verification cycle.
 
-- A vague spec forces the coding loop to guess.
-- Missing evals force the verifier to improvise.
-- Unprocessed user feedback forces the developer loop to rely on taste without evidence.
+Examples: rename a symbol, correct a known typo, update a well-covered conditional, or answer an explanatory question. Use a lightweight loop only if the task grows: state the goal, run the focused verifier, and stop. Escalate to the full loop when evidence, recovery, or continuation decisions start spanning multiple rounds.
 
-When repeated issues appear, prefer tightening the interface artifact over repeating natural-language reminders.
+## Choose the Loop Level
 
-## Choose The Loop Level
+Use a runtime-level loop by default for one long-running coding or incident task that needs persistence, retries, and restart semantics.
 
-- Use a workflow-level loop for multi-stage pipelines, DAG execution, role handoffs, stage gates, and revision routing.
-- Use a runtime-level loop for a single long-running coding task that needs persistence, retries, pause/resume, evidence, and restart semantics.
-- Combine both when pipeline stages themselves are long-running tasks.
-- Name the layer you are designing before proposing an architecture. Many bad designs mix workflow and runtime concerns into one muddy loop.
+Use a workflow-level loop for stage dependencies, multi-agent handoffs, pipeline gates, or revision routing. Combine both only when each workflow node is itself a long-running task.
 
-For most coding sessions, start with a runtime-level loop. Only introduce workflow-level orchestration when one agent or one goal is no longer a clear fit.
+Keep the three nested loops distinct:
 
-## Start With A Loop Spec
+1. **Coding / incident loop**: act, observe, verify, and recover in minutes.
+2. **Developer feedback loop**: update intent, scope, and evals in hours.
+3. **External feedback loop**: update product direction from users, testing, or production over days or longer.
 
-Write a compact loop spec before editing code. Use this shape unless the task already provides an equivalent artifact:
+Do not keep iterating in the inner loop when the blocker is missing product intent, external access, policy approval, or an environment change.
+
+## Start With a Loop Spec
+
+Write a compact loop spec before editing code or starting repeated attempts. If the task is an incident, include the Incident Entry Gate below before allowing a success claim.
 
 ```md
 Goal:
-- What concrete deliverable must exist?
-- What evidence proves progress?
+- What externally observable deliverable or recovery state is required?
+- What evidence proves complete, mitigated, or blocked?
+
+Symptom and Acceptance Surface:
+- What did the user actually observe?
+- Which executable path, event, API, UI, or environment must pass to close it?
 
 State:
-- What is the source of truth?
-- What must persist across rounds?
-- What can be summarized or discarded?
+- What persists across rounds?
+- Where are raw evidence, attempt history, current hypothesis, and blocked reason stored?
 
 Planner:
-- How is the next step selected from current state and evidence?
-- What causes replanning?
+- What is the next-action rule?
+- What evidence triggers replanning or loop-layer escalation?
 
 Actor:
-- What actions can the system take?
-- Which actions are risky, costly, or irreversible?
+- Which actions are allowed, risky, costly, or irreversible?
 
 Observer:
-- What raw outputs are captured after actions?
-- Where are logs, diffs, test results, and tool outputs stored?
+- Which raw outputs, logs, diffs, exit codes, and timestamps are captured?
 
 Verifier:
-- What independent check decides whether things improved?
-- What evidence is required for "done"?
+- Which independent check covers the acceptance surface?
+- Which checks are probes only, rather than final acceptance?
 
 Failure Semantics:
-- When should the system retry, switch strategy, narrow scope, or hand off?
-- What counters or cooldowns cap repetition?
+- How are transient, strategy, environment, policy, and unknown failures classified?
+- What are the retry and strategy-switch budgets?
 
 Exit Conditions:
-- Success exit
-- Blocked exit
-- Budget exit
-- Risk exit
-- Human takeover exit
+- Complete
+- Mitigated but not root-resolved
+- Blocked / handoff
+- Budget or risk exit
 
 Policy:
-- Permission boundaries
-- Cost limits
-- Allowed tools
-- Approval requirements
+- Permission, approval, tool, cost, and mutation boundaries
 ```
 
-If any of these sections are missing, call that out explicitly before implementation.
+Call out missing fields explicitly. Do not silently infer an end-to-end verifier from a unit test, a successful command, or an agent's own summary.
 
-## Map The Loop To Codex Goal
+## Incident Entry Gate
 
-When the task is long enough to justify `/goal`, bind the loop spec to goal semantics explicitly:
+Use this gate whenever a failure is ambiguous, integration-dependent, environment-sensitive, or reported only as a generic error such as `code 1`, timeout, or permission denied.
 
-- Goal:
-  Use a concrete objective that can survive many rounds without being rewritten.
-- Continue condition:
-  State what evidence would justify one more round of work.
-- Completion condition:
-  State what verifiable outcome is required before marking the goal complete.
-- Blocked condition:
-  State what repeated blocker requires human input or external change before more work is useful.
-- Budget boundary:
-  State what time, token, cost, or attempt cap should stop the loop even if the ideal outcome is unfinished.
+Before treating a verifier as acceptance evidence, create an evidence-surface map:
 
-Treat `/goal` as the persistence layer for intent, not as the design of the loop itself.
+| Item               | Required record                                              |
+| ------------------ | ------------------------------------------------------------ |
+| User symptom       | Exact visible failure, affected path, and time/context       |
+| Acceptance surface | The real lifecycle, API, UI, or command path that must work  |
+| Candidate verifier | Command, test, probe, or observation being proposed          |
+| Coverage           | Does it execute the acceptance surface? `yes`, `partial`, or `no` |
+| Evidence role      | `acceptance`, `supporting`, or `diagnostic-only`             |
+| Gap                | What the result still cannot prove                           |
 
-## When To Escalate Out Of The Coding Loop
+Apply these rules:
 
-Do not keep the agent in the coding loop when the real blocker is outside that loop.
+1. A verifier with `coverage = no` cannot close the incident.
+2. A verifier with `coverage = partial` can narrow hypotheses, but must retain the untested acceptance gate.
+3. A successful direct component replay proves the component boundary only; it does not prove its real runner, permissions, environment inheritance, or lifecycle integration.
+4. If no verifier covers the acceptance surface, use `$diagnosing-bugs` when available to design the smallest falsifiable probe. Without it, do not hypothesize or fix by guesswork: collect raw evidence, narrow the observation surface, and record the remaining gap as a blocker.
 
-Escalate to the developer feedback loop when:
+This gate prevents the classic failure mode: a CLI or unit-test green result is mistakenly used to declare a lifecycle, UI, or integration bug fixed.
 
-- The current spec is underspecified or contradictory
-- Multiple product directions look valid
-- The implementation is close, but UX or flow tradeoffs are unresolved
-- The same issue recurs because the eval is weak or missing
-- The agent can satisfy the letter of the spec but not the intent
+## Build an Evidence Harness for Repeated or High-Impact Work
 
-Escalate to the external feedback loop when:
+When the loop needs more than one probe, make the evidence executable rather than leaving it in chat prose.
 
-- The product works against the current spec, but user value is still uncertain
-- The team is arguing from opinion instead of evidence
-- Real usage, alpha feedback, or experiments are cheaper than more internal iteration
+Define an evidence harness with:
 
-The stop condition for one loop is often the handoff condition for another.
+```md
+Probe ID:
+Hypothesis:
+Acceptance-surface coverage: yes | partial | no
+Baseline:
+Variable changed:
+Command or action:
+Expected raw signal:
+Observed raw signal path or ID:
+Exit code / assertion:
+Interpretation boundary:
+```
 
-## Build The Minimal Closed Loop
+Prefer a script when the same comparison will be repeated or handed off. It should:
 
-- Start with the smallest loop that can prove convergence. Do not design the maximum future platform first.
-- Separate stable goal from transient observations. Stable goals should not be rewritten every round.
-- Keep the verifier independent from the actor. The system that makes the change should not be the only system that declares success.
-- Record raw evidence paths or IDs, not only summaries.
-- Bound retries by reason and count. "Try again" is not a recovery strategy.
-- Make handoff possible. A human should be able to inspect state and understand why the loop is still running.
-- Default to a coding loop that can finish Phase 1 before inventing extra agents, orchestrators, or memory layers.
+- run the baseline and changed condition with all other meaningful variables held constant;
+- capture raw stdout, stderr, exit code, timestamps, and relevant log/state paths;
+- assert the expected signal instead of relying on manual recollection;
+- label whether the result is diagnostic, supporting, mitigation, or final acceptance evidence;
+- avoid modifying production or user configuration unless that mutation is explicitly authorized.
 
-## Design The Core Components
+For configuration-sensitive incidents, use an A/B pattern:
 
-### Goal
+```text
+baseline configuration -> same probe -> raw result
+one scoped variable change -> same probe -> raw result
+```
 
-- Define a deliverable that can be observed externally.
-- Replace vague goals like "fix it" or "help with deployment" with target outcomes, evidence, and constraints.
-- Prefer goals that can be decomposed and verified incrementally.
-- When possible, phrase the goal as "change these files or behaviors until these validations pass."
+Do not call a workaround a root repair merely because the changed condition is green. Preserve the failing baseline and the unexecuted acceptance gate.
 
-### State
+## State Model
 
-- Persist attempts, current phase, blocked reasons, prior failures, evidence pointers, and the rationale for the next step.
-- Keep a source-of-truth state object or event log. Do not rely on the context window as the only memory.
-- Compress history aggressively. Preserve raw evidence separately from reasoning summaries.
-- In coding work, the minimum useful state usually includes touched files, failed commands, test status, current hypothesis, and remaining scope.
+Persist state outside the context window. Keep raw evidence separate from summaries.
 
-### Planner
+The minimum useful state for a long-running implementation or incident loop is:
 
-- Replan from current state instead of trusting an initial perfect plan.
-- Select the next step from dependencies, evidence, and failure history.
-- When multiple next actions are possible, state the decision rule. Examples: cheapest verifier first, unblock highest-dependency node first, or rerun only the failed phase.
-- Reuse `$mvp-plan`, `$plan`, and `$checklist` outputs as planner inputs instead of regenerating strategy from scratch on every round.
+```yaml
+goal: <stable objective>
+acceptance_surface: <real path to close>
+phase: inspect | reproduce | isolate | mitigate | repair | accept | handoff
+status: running | waiting | blocked | mitigated | complete | budget_exhausted
+current_hypothesis: <testable statement>
+attempts:
+  - id: <stable attempt id>
+    probe_id: <optional id>
+    action: <what changed or ran>
+    failure_class: transient | strategy | environment | policy | unknown | none
+    raw_evidence: <paths, IDs, exit codes>
+    conclusion: <what this does and does not prove>
+    next_action_rule: <why this next step>
+evidence_gaps:
+  - <unobserved but required fact>
+retry_budget:
+  transient: 1
+  strategy_per_hypothesis: 1
+  unknown_before_narrowing: 1
+blocked_reason: <if any>
+handoff_requirements:
+  - <what outside actor must provide>
+```
 
-### Actor
+Use a state file, issue record, checklist, or other durable artifact appropriate to the repository. A free-form handoff is useful, but it must include the current hypothesis, failed attempts, raw evidence pointers, acceptance gap, and exact next gate.
 
-- Keep actions small and reversible where possible.
-- Label risky operations before running them.
-- Prefer idempotent actions for restartability.
-- In coding tasks, prefer the smallest edit that can falsify the current hypothesis.
+## Planner and Next-Action Rules
 
-### Observer
+Derive the next action from state and evidence; do not repeatedly regenerate a plan from scratch.
 
-- Capture raw outputs from tools, tests, logs, diffs, and API responses.
-- Distinguish observations from interpretations. First record what happened, then infer what it means.
-- Record whether failures came from code, environment, permissions, flaky tests, or incorrect assumptions.
+Use these default decision rules:
 
-### Verifier
+1. If the acceptance surface is not mapped, map it before optimizing a proxy verifier.
+2. If the current hypothesis is not falsifiable, narrow it with the cheapest probe that can change the decision.
+3. If a probe is green but does not cover acceptance, classify it as supporting evidence and keep the acceptance gate pending.
+4. If a new observation contradicts the current hypothesis, switch layer or hypothesis; do not repeat the same action.
+5. If the failure is environmental or policy-bound, stop modifying unrelated application code and prepare handoff evidence.
+6. If all low-cost probes agree and the remaining gate requires outside control, mark `blocked` or `mitigated`, not `complete`.
 
-- Use independent checks such as tests, lint, typecheck, static analysis, diff review, schema validation, or policy checks.
-- Refuse self-certification. "The agent said DONE" is not evidence.
-- Define what constitutes progress, not just completion.
-- Prefer cheap verifiers before expensive ones: focused test, then broader suite, then manual review if needed.
-- Treat evals as a long-lived interface artifact. If the same bug class repeats, improve the eval instead of only fixing the current instance.
+Choose the smallest reversible action that can falsify the current hypothesis. Prefer focused checks before broad suites, and direct observation before speculative edits.
 
-### Failure Recovery
+## Verifier Integrity
 
-- Classify failures: transient, strategy, environment, policy, or unknown.
-- Retry only when the failure class justifies retry.
-- Change strategy after repeated failures. Narrow scope, use a different tool, ask for approval, or hand off.
-- Keep retry budgets explicit per phase or per error type.
-- Do not treat repeated test failure as a reason to keep editing blindly. Update the hypothesis or stop.
+Keep the actor and verifier independent where practical. An agent saying “done” is never sufficient evidence.
 
-### Exit Conditions
+Classify every check:
 
-- Stop on success when evidence meets the goal.
-- Stop as blocked when the system cannot make meaningful progress without outside input or an environment change.
-- Stop on budget when cost, time, or attempt caps are exhausted.
-- Stop on risk when the next action exceeds policy.
-- Stop on handoff when a human decision is now the fastest path.
-- Keep "complete" and "blocked" honest. A messy partial implementation with failing checks is not complete just because the agent ran for a long time.
+| Class               | Meaning                                                      | Can close the goal?           |
+| ------------------- | ------------------------------------------------------------ | ----------------------------- |
+| Acceptance verifier | Executes the defined acceptance surface and checks its required outcome | Yes                           |
+| Supporting verifier | Confirms an important component or adjacent path             | No, by itself                 |
+| Diagnostic probe    | Narrows hypotheses or exposes raw failure semantics          | No                            |
+| Regression verifier | Checks that a change did not damage other required behavior  | Only with acceptance evidence |
 
-### Policy
+Record the exact command, input conditions, output, exit code, and evidence path for an acceptance claim. If the true lifecycle cannot be triggered automatically, state the manual or external gate explicitly and leave the task in `mitigated` or `blocked` until it runs.
 
-- Encode permission boundaries, allowed mutations, approval requirements, model/tool routing, and spend limits.
-- Treat policy as part of the loop, not a separate afterthought.
-- In coding sessions, explicitly separate read-only inspection, safe local edits, expensive validation, and privileged operations.
+## Failure Semantics and Retry Policy
+
+Classify failures before retrying:
+
+- **Transient**: same action may reasonably succeed unchanged; retry once with evidence capture.
+- **Strategy**: the hypothesis, tool, or implementation path is wrong; switch strategy before another attempt.
+- **Environment**: an external runtime, dependency, permission, or machine state prevents progress; collect a minimal reproducer and hand off or repair the environment.
+- **Policy**: the next action requires user approval or exceeds permissions; stop and request authority.
+- **Unknown**: evidence is insufficient; reduce scope and improve observation. Use `$diagnosing-bugs` when available; otherwise stop before speculative edits and record the missing red-capable probe.
+
+Never retry without a reason. Enforce these minimum limits unless the task specifies stricter ones:
+
+- retry a transient failure once;
+- do not retry the same strategy after the same evidence disproves it;
+- after one unknown failure, narrow the observation surface before attempting a fix;
+- treat repeated environment failures as a handoff trigger, not a code-edit invitation.
+
+## Exit Conditions and Honest Status
+
+Maintain distinct outcomes:
+
+| Status             | Meaning                                                      | Required evidence                                            |
+| ------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `complete`         | The requested outcome is achieved                            | Acceptance verifier passes; required regressions pass        |
+| `mitigated`        | A safe workaround restores limited usefulness                | Workaround probe passes; original acceptance or root cause remains explicitly open |
+| `blocked`          | Further progress needs outside input, access, or environment change | Minimal reproducer, raw evidence, and precise handoff request exist |
+| `budget_exhausted` | Further attempts are low-yield within agreed limits          | Attempt history and next best action are recorded            |
+| `risk_stop`        | Next action would exceed policy or safety limits             | Risk and required approval are recorded                      |
+
+Do not use “fixed” when only a proxy path works. Do not use “blocked” as a vague failure label: identify the owner, missing condition, evidence bundle, and next acceptance action.
+
+## Handoff Contract
+
+When exiting without completion, provide a handoff that another engineer can execute without reconstructing the whole chat:
+
+```md
+Current status: mitigated | blocked | budget_exhausted | risk_stop
+User-visible symptom:
+Acceptance surface still pending:
+What was ruled out:
+Strongest remaining hypothesis:
+Minimal reproduction / evidence harness command:
+Raw evidence paths or IDs:
+Configuration and environment facts:
+Attempts and failure classes:
+What the workaround proves and does not prove:
+Exact next action, owner, and acceptance condition:
+```
+
+The handoff is part of the loop, not an afterthought.
+
+## Worked Example: Hook Says `code 1`, but the Direct Replay Is Green
+
+Use this compact example as a pattern for an integration incident. It demonstrates evidence roles, not a claim that one probe proves the whole system.
+
+```md
+Goal:
+- Restore the taskbar state update from a real Hook lifecycle event.
+
+User symptom:
+- The real Codex session shows `hook exited with code 1`.
+
+Acceptance surface:
+- A real lifecycle event completes without `code 1` and writes the expected state.
+```
+
+| Attempt                                       | Raw observation                                              | Coverage / role                                              | State update                                                 |
+| --------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Directly replay Hook JSON                     | Exit `0`; isolated state file written                        | `partial` / supporting: proves the Hook boundary, not the runner or sandbox | Rule out a deterministic parser/state-write failure in direct execution |
+| Run `codex exec` and inspect Hook diagnostics | Command succeeds; no Hook event or state update              | `no` / diagnostic-only for lifecycle acceptance              | Do not use `codex exec` to close the Hook issue              |
+| Run a read-only shell probe                   | Sandbox helper reports `Access denied`                       | `partial` / diagnostic-only for Hook, strong environment evidence | Switch from Hook code edits to environment isolation         |
+| Compare sandbox modes                         | `unelevated` shell probe passes repeatedly; scoped `elevated` probe fails | `partial` / mitigation evidence                              | Mark `mitigated`; retain real lifecycle acceptance gate      |
+
+The correct status is `mitigated`, not `complete`: the shell workaround restores a useful path, but the actual lifecycle Hook has not yet passed. A correct handoff asks for the missing runner stderr or a real lifecycle acceptance run, and includes the direct replay, mode-comparison commands, raw outputs, and the unclosed gate.
 
 ## Recommended Sequence
 
-For software delivery work, prefer this sequence:
+For normal software delivery:
 
-1. Clarify the requested outcome and validation signal.
-2. Use `$mvp-plan` if scope is ambiguous or at risk of over-engineering.
-3. Use `$plan` to map the change onto actual files, modules, and commands.
-4. Use `$checklist` if the implementation has enough moving parts that task ordering and reflection matter.
-5. Decide whether a normal coding session is enough or whether `/goal` is justified.
-6. Run the loop:
-   inspect -> choose next task -> edit -> verify -> update state -> continue, replan, block, or stop
+1. Clarify outcome and validation signal.
+2. Use any available scope, planning, and task-breakdown adapters when scope and ordering warrant them; otherwise write the equivalent minimal artifacts in the Loop Spec and durable state.
+3. Write the loop spec.
+4. Run: inspect -> choose -> act -> verify -> update state -> continue, replan, block, or stop.
 
-If the work is small and can be finished in one short edit/verify pass, do not force `/goal`.
+For ambiguous incidents:
 
-## Decide When To Use Goal
+1. Record the user-visible symptom and acceptance surface.
+2. Use `$diagnosing-bugs`, when available, to reproduce or minimize the failure. Without a red-capable probe, gather evidence or hand off; do not enter speculative fix iterations.
+3. Apply the Incident Entry Gate to every proposed verifier.
+4. Build a minimal evidence harness for the important comparison.
+5. Use the loop to select the next falsifiable action, not to repeat edits.
+6. Separate mitigation from root repair.
+7. Run the true acceptance verifier, or hand off with the missing gate explicit.
 
-Use `/goal` when most of these are true:
-
-- The task will require many rounds
-- Validation is not immediate
-- State will matter across interruptions
-- The agent may need to revisit earlier failures
-- You want explicit complete vs blocked lifecycle
-
-Do not use `/goal` just because the task sounds important. Use it when persistence and repeated decision-making actually matter.
-
-Do not use `/goal` to preserve product ambiguity. First decide whether the ambiguity belongs in scope, spec, or external feedback.
-
-## Coding Loop Template
-
-Use this compact template for implementation-heavy tasks:
-
-```md
-Objective:
-- Deliver <specific code or behavior change>
-
-Phase Source:
-- MVP scope from `$mvp-plan` or scope assumption
-- Execution phases from `$plan`
-- Atomic tasks from `$checklist`
-
-Current State:
-- Relevant files:
-- Current phase/task:
-- Last verification result:
-- Current hypothesis:
-- Remaining scope:
-
-Next Action Rule:
-- Pick the smallest task that can change verification state.
-
-Verifier Order:
-1. Focused local check
-2. Relevant tests/lint/typecheck
-3. Broader regression check if needed
-
-Failure Policy:
-- Retry once for transient issues
-- Replan after repeated logic failure
-- Block on missing permissions, missing environment, or unclear product choice
-
-Stop Rule:
-- Stop complete when required evidence exists
-- Stop blocked when new progress requires outside input
-- Stop budgeted when further rounds are low-yield
-```
+Use Codex `/goal`, when available, when work spans many rounds and needs persistence. Treat it as one possible container for a stable objective and lifecycle, not as the planner, verifier, or retry policy.
 
 ## Review Existing Loops
 
-When reviewing an existing agent loop, inspect it in this order:
+Review in this order:
 
-1. Find the source of truth for state.
-2. Find the independent verifier.
-3. Find the retry and strategy-switch logic.
-4. Find the stop conditions.
-5. Find the human takeover path.
-6. Find whether planning outputs from `$mvp-plan`, `$plan`, or `$checklist` are being preserved or silently discarded.
+1. Find the durable source of truth.
+2. Find the stated acceptance surface.
+3. Find the independent verifier and check its coverage.
+4. Find raw evidence capture and the evidence harness.
+5. Find failure classes, retry limits, and strategy-switch rules.
+6. Find the distinction between complete, mitigated, and blocked.
+7. Find the human takeover path and the exact remaining gate.
+8. Check whether repeated feedback became durable spec or eval artifacts.
 
-If any item is missing, explain how the loop can drift, stall, or become a token sink.
-
-## Output Expectations
-
-When using this skill, produce artifacts that another engineer can execute against:
-
-- A loop spec or architecture note
-- A state model or event/state transition table
-- A verifier plan
-- Failure semantics and retry limits
-- Exit conditions
-- A short risk register
-- A recommendation for whether to use `/goal`
-- A mapping to `$mvp-plan`, `$plan`, and `$checklist` outputs when those skills are in play
-
-If implementing code, map the design to concrete files, state containers, and verification entry points.
+If any item is missing, explain how the loop can drift, self-certify, confuse a workaround with a repair, or become a token sink.
 
 ## Common Smells
 
-- Infinite retry with no strategy change
-- Actor and verifier collapsed into one component
-- No persisted state outside the prompt/context window
-- Full history replayed every round with no compression boundary
-- "Completed" declared without raw evidence
-- No distinction between blocked, failed, and waiting
-- No explicit stop path
-- The loop regenerates plans each round but never commits to one executable next task
-- `/goal` is created before scope is cut down, so the agent persists a bloated objective
-- Planning skills are used as one-shot documents and never feed the next-round decision logic
-- Product ambiguity is treated as an implementation problem, so the coding loop keeps churning on the wrong target
-- Repeated human feedback never becomes updated spec or eval artifacts
+- A green unit, CLI, or shell probe is used to close a different lifecycle or UI failure.
+- The actor and verifier are the same assertion with no independent evidence.
+- Generic errors are treated as root causes rather than starting points for observation.
+- “Retry” repeats the same action without a changed hypothesis or failure class.
+- Environment failure triggers unrelated application code edits.
+- A workaround is reported as a root fix.
+- State exists only in the chat context or a prose handoff without attempt IDs and evidence pointers.
+- A goal remains `running` even though the next progress requires an external actor.
+- Human or external feedback never becomes a specification, eval, or decision record.
+- A full Loop Spec, persistent state store, or harness is created for a one-shot, well-covered change that needs one edit and one focused check.
+
+## Output Expectations
+
+When using this skill, produce the artifacts needed for another engineer to continue safely:
+
+- loop spec with acceptance surface;
+- state model or state-transition table;
+- evidence-surface map and verifier plan;
+- evidence harness when a critical probe or comparison repeats;
+- failure classes and retry limits;
+- exit condition and risk register;
+- honest status: complete, mitigated, blocked, budget exhausted, or risk stop;
+- recommendation for a durable task container such as `/goal`, when one is needed;
+- mapping to optional planning or diagnosis adapters when they are available, plus the fallback artifacts used when they are not.
