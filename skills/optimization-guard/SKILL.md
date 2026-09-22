@@ -20,6 +20,8 @@ Do not propose patches before making this judgment.
 
 A discovered issue is not automatically a task.
 
+Choosing not to optimize is itself a valid decision. If the expected benefit is small, uncertain, or disproportionate to the added complexity or risk, prefer keeping the current approach.
+
 Prefer the smallest coherent scope. Multiple failures may be handled together when they clearly share the same root cause; otherwise defer unrelated issues.
 
 Reference answers are evidence, not exact targets. Differences matter only when they violate an explicit acceptance criterion.
