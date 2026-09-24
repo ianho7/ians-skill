@@ -1,6 +1,6 @@
 ---
 name: plan-build-prove
-description: Run a bounded plan → build → prove workflow using optional planning, implementation, independent verification, explicit task state, adaptive verification, and compact session outcomes. Use only when explicitly invoked by the user.
+description: Run a bounded plan → build → prove workflow using optional planning, implementation, independent verification, explicit task state, controlled repair/replan loops, adaptive verification, and compact session outcomes. Use only when explicitly invoked by the user.
 ---
 
 # Plan Build Prove
@@ -26,8 +26,8 @@ Independent Reviewer / Verifier
         │
         ├── PASS → Done
         ├── FAIL_NON_BLOCKING → Done + suggestions
-        ├── FAIL_BLOCKING → Repair → Review again
-        └── PLAN_INVALID → Replan
+        ├── FAIL_BLOCKING → Repair → Prove again
+        └── PLAN_INVALID → Replan or Escalate
 ```
 
 ## 1. Preferences
@@ -95,13 +95,43 @@ Create or reuse an implementation plan as needed. Do not require a new architect
 
 If implementation evidence later proves a material plan assumption invalid, replan instead of patching around a broken design.
 
-## 3. Roles
+## 3. Orchestration
+
+The invoking agent acts as the Orchestrator.
+
+Workers do the specialist work; the Orchestrator owns workflow transitions.
+
+The Orchestrator MUST:
+
+- maintain the canonical Task State;
+- choose which role runs next from the current state;
+- spawn Architect, Implementer, and Reviewer / Verifier in appropriate contexts;
+- construct each worker's minimal input instead of forwarding full prior conversations;
+- receive Session Outcomes and update Task State;
+- enforce repair and replan limits;
+- stop or escalate when a terminal condition is reached.
+
+Prefer hub-and-spoke handoffs:
+
+```text
+Worker → Orchestrator → next Worker
+```
+
+rather than direct Worker → Worker handoffs.
+
+Workers report outcomes. They do not own the workflow state machine and should not autonomously continue into the next role unless the host runtime requires that execution model.
+
+The Orchestrator coordinates; it should not duplicate the Architect's design work, the Implementer's coding work, or the Reviewer's acceptance judgment.
+
+## 4. Roles
 
 ### Architect
 
 Use an Architect when a new plan or replan is materially useful.
 
-The Architect establishes the task contract and a workable implementation direction. Keep the output proportional to the task; do not force a large planning document.
+The Architect establishes or repairs the task contract and a workable implementation direction. Keep the output proportional to the task; do not force a large planning document.
+
+Return the plan and a compact Session Outcome to the Orchestrator. Do not directly hand off to the Implementer.
 
 ### Implementer
 
@@ -119,6 +149,8 @@ The Implementer must not silently redefine the Goal, Constraints, Acceptance Cri
 
 If the approved plan cannot work because a material assumption is false, return `PLAN_INVALID` with the concrete invalid assumption.
 
+Return the implementation result and a compact Session Outcome to the Orchestrator. Do not directly hand off to the Reviewer.
+
 ### Independent Reviewer / Verifier
 
 The Reviewer is responsible for independent verification and the final acceptance judgment.
@@ -127,7 +159,7 @@ Use an independent subagent or isolated context whenever the host runtime suppor
 
 Do not simulate independent review merely by switching roles inside the Implementer's context when true isolation is available.
 
-When spawning the Reviewer, the orchestrating agent MUST construct a fresh review context instead of copying or forking the Implementer's full conversation.
+When spawning the Reviewer, the Orchestrator MUST construct a fresh review context instead of copying or forking the Implementer's full conversation.
 
 Provide only what the Reviewer needs, typically:
 
@@ -139,7 +171,9 @@ Validation context or artifacts
 Open blockers, if any
 ```
 
-Do not provide the Implementer's full reasoning history unless strictly necessary.
+Do not provide the Implementer's full conversation or explanatory narrative unless it is strictly necessary as evidence.
+
+The Reviewer may independently inspect code, run tests or evals, reproduce failures, and inspect artifacts as needed. If specialized verification requires another worker, route that need through the Orchestrator rather than bypassing the workflow state.
 
 The Reviewer must judge whether the current result satisfies the task contract, not whether it matches the Reviewer's preferred implementation.
 
@@ -149,11 +183,13 @@ Never mark a criterion verified solely because another agent claims it passed.
 claim ≠ evidence
 ```
 
-## 4. Verification
+Return one primary review status and a compact Session Outcome to the Orchestrator.
+
+## 5. Verification
 
 Choose verification methods according to the product behavior.
 
-Use one of these profiles when useful:
+Use these profiles when useful:
 
 ```text
 deterministic
@@ -197,11 +233,11 @@ Before final `PASS` or `FAIL_NON_BLOCKING`, reconsider the complete acceptance c
 
 This does not require blindly running the entire repository test suite after every edit. Use the smallest evidence set that still provides justified confidence.
 
-## 5. Explicit Task State
+## 6. Explicit Task State
 
-Maintain a small canonical Task State for the current task.
+The Orchestrator maintains a small canonical Task State for the current task.
 
-Its purpose is to preserve facts across independent agents, repair rounds, long-running sessions, and context compaction.
+Its purpose is to preserve facts across independent agents, repair rounds, replans, long-running sessions, and context compaction.
 
 Task State is a control plane, not a transcript or reasoning log.
 
@@ -224,7 +260,9 @@ Do not store complete conversations, reasoning traces, large test logs, or imple
 
 If a field can be safely derived from current state, do not persist it merely for convenience.
 
-## 6. Loop
+Task State is authoritative for cross-session facts. Worker conversation history is not.
+
+## 7. Loop
 
 The Reviewer returns one primary status:
 
@@ -235,17 +273,21 @@ FAIL_NON_BLOCKING
 PLAN_INVALID
 ```
 
+The Orchestrator applies the transition.
+
 ### PASS
 
 All required acceptance criteria have sufficient current evidence.
 
-Stop the loop.
+Set the task to done and stop the loop.
 
 ### FAIL_BLOCKING
 
 One or more verified issues materially prevent acceptance.
 
-Record only the blocking findings, return them to the Implementer, and repair those blockers without restarting the entire implementation unless replanning occurred.
+The Orchestrator records only the blocking findings, increments the repair round, and starts a focused repair with the Implementer.
+
+Do not restart the entire implementation unless replanning occurred.
 
 After repair:
 
@@ -257,46 +299,38 @@ re-evaluate full acceptance contract
 PASS / FAIL
 ```
 
+Stop automatic repair when the configured repair limit is reached. Then stop modifying, surface the unresolved blocker, identify the assumption most likely to be wrong, and recommend one concrete next action.
+
 ### FAIL_NON_BLOCKING
 
 Required outcomes are satisfied but optional improvements remain.
 
-Stop the automatic loop and report the suggestions separately.
-
-Do not automatically repair them.
+Stop the automatic loop and report the suggestions separately. Do not automatically repair them.
 
 ### PLAN_INVALID
 
 A material assumption in the approved plan is invalid.
 
-Allow one automatic replan. Increment `replan_count`, return to the Architect for targeted replanning, then resume implementation.
-
-If `PLAN_INVALID` occurs again after an automatic replan, stop the automatic loop and escalate instead of continuing architecture churn. The user may explicitly choose to continue.
-
-### Repair limit
-
-Never use an unbounded "repeat until approved" loop.
-
-Stop automatic repair when the configured repair limit is reached.
-
-At that point:
+Allow one automatic replan:
 
 ```text
-stop modifying
-identify the unresolved blocker
-identify the assumption most likely to be wrong
-recommend one concrete next action
+first PLAN_INVALID
+→ replan_count = 1
+→ Architect
+→ Implementer
 ```
 
-After repeated failed repairs, question the assumption rather than increasing activity.
+If `PLAN_INVALID` occurs again after that automatic replan, escalate and stop the automatic loop instead of continuing architecture churn. The user may explicitly choose to continue.
 
 Keep one primary next action at a time and suppress unrelated improvements during the active loop.
 
+After repeated failed repairs, question the assumption rather than increasing activity.
+
 Choosing not to continue repairing or optimizing is a valid outcome.
 
-## 7. Session Outcome
+## 8. Session Outcome
 
-Every Architect, Implementer, and Reviewer session MUST end with one compact Session Outcome.
+Every Architect, Implementer, and Reviewer session MUST end with one compact Session Outcome returned to the Orchestrator.
 
 Do not end with a narrative recap or large Summary section.
 
@@ -320,7 +354,7 @@ Simply: AC1/2 pass; AC3 is blocked by a compatibility regression; next: repair A
 If nothing is blocked:
 
 ```text
-Simply: implementation is complete and local self-checks pass; next: independent review.
+Simply: implementation is complete and local self-checks pass; next: independent verification.
 ```
 
 For completion:
@@ -329,9 +363,9 @@ For completion:
 Simply: all required acceptance criteria are independently verified; the task is complete.
 ```
 
-Session Outcome is also the compact handoff to the next agent. Once Task State is updated, old outcomes are no longer authoritative.
+Session Outcome is the Worker → Orchestrator handoff. Once the Orchestrator updates Task State, old outcomes are no longer authoritative.
 
-## 8. Safety and Scope
+## 9. Safety and Scope
 
 Do not alter the user's Git workflow unless explicitly requested.
 

@@ -197,7 +197,11 @@ The Implementer may run tests and evals for development feedback, but must not b
 
 Authoritative verification should occur in an independent agent context whenever the host supports it.
 
+The Orchestrator should construct the Reviewer / Verifier context from the Task State, acceptance criteria, current implementation, relevant artifacts, and open blockers rather than forwarding the Implementer's full conversation.
+
 The Reviewer should independently inspect or reproduce the evidence needed for acceptance when practical.
+
+If specialized verification needs another worker, route that need through the Orchestrator so Task State and workflow transitions remain centralized.
 
 After a repair, first verify the blocker, then reconsider the complete acceptance contract to catch regressions.
 

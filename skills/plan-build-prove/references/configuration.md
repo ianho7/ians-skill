@@ -58,16 +58,20 @@ reviewer:
 max_repair_rounds: 3
 ```
 
+The Orchestrator is the invoking agent, not a separately configured specialist role. Do not add an `orchestrator` model setting unless a future host runtime genuinely requires one.
+
 Do not add configuration knobs for internal workflow behavior unless repeated real-world use proves that users need control over them.
 
 Examples of settings that should normally remain skill rules rather than preferences:
 
 ```text
 reviewer isolation
+orchestration topology
 blocker policy
 state format
 review prompt shape
 plan invalidation behavior
+replan limit
 test orchestration
 session outcome format
 ```
