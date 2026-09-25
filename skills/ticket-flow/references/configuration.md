@@ -60,7 +60,7 @@ max_repair_rounds: 3
 
 `replanner` is a recovery-only role. If omitted, inherit the Reviewer profile.
 
-The Orchestrator is the invoking agent, not a separately configured specialist role. Do not add an `orchestrator` model setting unless a future host runtime genuinely requires one.
+The Workflow Orchestrator is the invoking agent, not a separately configured specialist role. Each dedicated Ticket Session uses the Implementer profile for its main agent, while Reviewer and Replanner profiles apply to local subagents/isolated contexts. Do not add separate workflow- or ticket-orchestrator model settings unless a future host runtime genuinely requires them.
 
 Do not add configuration knobs for internal workflow behavior unless repeated real-world use proves that users need control over them.
 
@@ -70,6 +70,7 @@ Settings that should normally remain skill rules rather than preferences include
 reviewer isolation
 DAG scheduling policy
 orchestration topology
+Ticket Session isolation policy
 blocker policy
 state format
 review prompt shape

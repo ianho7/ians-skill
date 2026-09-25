@@ -1,6 +1,6 @@
 ---
 name: ticket-flow
-description: Advance an approved Ticket or Ticket DAG through scoped implementation, independent verification, bounded repair, and dependency-aware orchestration. Reuse Ticket plans instead of replanning. Use only when explicitly invoked by the user.
+description: Advance an approved Ticket or Ticket DAG through dedicated per-Ticket execution sessions, scoped implementation, independent verification, bounded repair, and dependency-aware orchestration. Reuse Ticket plans instead of replanning. Use only when explicitly invoked by the user.
 ---
 
 # Ticket Flow
@@ -46,9 +46,9 @@ Ticket
   ↓
 Validity Gate
   ↓
-Build
+Dedicated Ticket Session
   ↓
-Prove
+Build → Prove
 ```
 
 For multiple Tickets:
@@ -58,7 +58,11 @@ Load DAG
   ↓
 derive READY tickets
   ↓
-Build + Prove each ready ticket
+create one dedicated execution Session per dispatched Ticket
+  ↓
+Ticket Session runs Build + Prove locally
+  ↓
+compact Ticket Outcome returns to Workflow Session
   ↓
 PASS unlocks dependents
   ↓
@@ -116,36 +120,56 @@ If configuration work is needed, load `references/configuration.md`.
 
 References provide progressive detail, not required control flow. If a reference cannot be loaded, continue with the core rules in this file; do not block solely because a reference is unavailable or invent replacement policy.
 
-## 3. Orchestration
+## 3. Session Architecture and Orchestration
 
-The invoking agent acts as the Orchestrator.
+Use two orchestration layers.
 
-Workers do specialist work; the Orchestrator owns workflow transitions.
+### Workflow Session
 
-The Orchestrator MUST:
+The invoking Session is the thin Workflow Orchestrator.
+
+It owns only workflow-level control:
 
 - load the Ticket or Ticket DAG;
-- maintain minimal canonical workflow and per-Ticket state;
-- derive which Tickets are READY from dependency status;
-- dispatch fresh workers for Build and Prove;
-- construct minimal context for each worker instead of forwarding full prior conversations;
-- receive Session Outcomes and update state;
-- enforce Ticket scope, repair limits, replan limits, and stop conditions;
+- maintain minimal workflow state;
+- derive which Tickets are READY;
+- create a dedicated execution Session/context for each dispatched Ticket;
+- receive one compact terminal Ticket Outcome from each Ticket Session;
+- update Ticket status and unlock dependents;
+- enforce graph-level stop conditions;
 - continue independent branches when another branch is blocked and safe progress remains.
 
-Prefer hub-and-spoke handoffs:
+The Workflow Session must not absorb Ticket implementation history, test logs, repair dialogue, or Reviewer conversations.
 
 ```text
-Worker → Orchestrator → next Worker
+Ticket Session → compact Ticket Outcome → Workflow Session
 ```
 
-Workers report outcomes. They do not own the workflow state machine.
+### Ticket Session
 
-The Orchestrator coordinates; it should not duplicate implementation or acceptance work.
+One Ticket should have one dedicated execution Session when the host supports user-visible or independently traceable Sessions/threads/tasks.
+
+```text
+One Ticket → one execution Session
+```
+
+Inside that Ticket Session:
+
+- the main agent acts as the Implementer and local Ticket orchestrator;
+- Build, self-check, repair, and local `PLAN_INVALID` recovery stay in that Session;
+- authoritative Prove runs through a fresh independent Reviewer / Verifier subagent or isolated context;
+- Reviewer findings return to the Ticket Session, not directly to the Workflow Session;
+- the Ticket Session resolves bounded repair/review cycles before returning a terminal outcome.
+
+Prefer a dedicated traceable Ticket Session over running every Ticket as a child subagent of one large Workflow Session.
+
+If the host cannot create separate traceable Sessions, fall back to a fresh isolated Ticket subagent/context. Preserve the same isolation and compact-handoff rules.
+
+The Workflow Session coordinates Tickets; the Ticket Session coordinates the lifecycle of one Ticket.
 
 ## 4. Build
 
-The Implementer executes exactly one current Ticket.
+Within the Ticket Session, the main agent acts as the Implementer.
 
 The Ticket's scope, Acceptance Criteria, out-of-scope items, and implementation boundary are the execution boundary.
 
@@ -161,17 +185,17 @@ Do not pre-implement downstream Tickets merely because future work is visible or
 
 If useful future work is discovered, record it without implementing it unless the current Ticket requires it.
 
-If a material Ticket assumption is false and the approved Ticket can no longer be executed as written, return `PLAN_INVALID` with the concrete invalid assumption. Do not silently redesign the Ticket.
+If a material Ticket assumption is false and the approved Ticket can no longer be executed as written, treat it as `PLAN_INVALID`. Do not silently redesign the Ticket.
 
-Return the implementation result and a compact Session Outcome to the Orchestrator.
+Keep Build details inside the Ticket Session.
 
 ## 5. Prove
 
-The Independent Reviewer / Verifier proves the current Ticket, not the whole project, unless the Ticket's own Acceptance Criteria explicitly require project-level verification.
+The Ticket Session must obtain independent acceptance before it can report success upstream.
 
-Use an independent subagent or isolated context whenever the host runtime supports it.
+Spawn a fresh Reviewer / Verifier subagent or isolated context inside the Ticket Session whenever the host supports it.
 
-The Orchestrator MUST construct a fresh verification context rather than copying or forking the Implementer's full conversation.
+The Ticket Session constructs a fresh verification context rather than forwarding its full implementation conversation.
 
 Provide only what is needed, typically:
 
@@ -183,9 +207,11 @@ Relevant validation artifacts
 Open blockers, if any
 ```
 
+The Reviewer proves the current Ticket, not the whole project, unless the Ticket's own Acceptance Criteria explicitly require project-level verification.
+
 The Reviewer may independently inspect code, run tests or evals, reproduce failures, and inspect artifacts as needed.
 
-Never mark a criterion verified solely because another agent claims it passed.
+Never mark a criterion verified solely because the Implementer claims it passed.
 
 ```text
 claim ≠ evidence
@@ -213,11 +239,11 @@ After a repair, verify the repaired blocker and then reconsider the complete Acc
 
 ## 6. State
 
-Keep workflow state explicit and small.
+Keep state explicit and small at both layers.
 
 ### Workflow State
 
-For a Ticket DAG, retain only what must survive orchestration boundaries, for example:
+The Workflow Session retains only what must survive across Ticket Sessions, for example:
 
 ```yaml
 tickets:
@@ -229,17 +255,20 @@ tickets:
     source: issues/02.md
     depends_on: ["01"]
     status: running
+    session_ref: <optional host reference>
   "03":
     source: issues/03.md
     depends_on: ["02"]
     status: pending
 ```
 
+A `session_ref` may be retained when the host exposes a stable reference and it improves traceability. Do not invent one when the host does not provide it.
+
 Do not persist `READY` or `BLOCKED_BY_*` when they can be derived from Ticket dependencies and current statuses.
 
 ### Per-Ticket State
 
-Keep transient control state separate from the Ticket artifact:
+The Ticket Session maintains only its local control state:
 
 ```yaml
 ticket: issues/02.md
@@ -253,9 +282,9 @@ The Ticket remains the authoritative source for its objective, scope, dependenci
 
 State is a control plane, not a transcript, reasoning log, test log, or implementation diary.
 
-## 7. Outcomes and Transitions
+## 7. Ticket-Local Outcomes and Transitions
 
-The Reviewer returns one primary result:
+The Reviewer returns one primary verdict to the Ticket Session:
 
 ```text
 PASS
@@ -264,23 +293,21 @@ FAIL_NON_BLOCKING
 PLAN_INVALID
 ```
 
-The Orchestrator owns the transition.
+The Ticket Session owns these local transitions.
 
 ### PASS
 
-Mark the Ticket `pass`. Its dependents may become READY.
+Finish the Ticket Session successfully and return a compact `pass` outcome to the Workflow Session.
 
 ### FAIL_BLOCKING
 
-Keep the Ticket active, record only verified blockers, increment `repair_round`, and dispatch a focused repair.
+Record only verified blockers, increment `repair_round`, repair inside the same Ticket Session, then spawn a fresh Reviewer / Verifier again.
 
-Downstream Tickets that depend on it remain blocked, but unrelated READY branches may continue.
-
-Stop automatic repair when `max_repair_rounds` is reached. Escalate that Ticket instead of continuing blind fixes.
+Stop automatic repair when `max_repair_rounds` is reached. Return an escalated Ticket Outcome instead of continuing blind fixes.
 
 ### FAIL_NON_BLOCKING
 
-If required Acceptance Criteria are satisfied, normalize the workflow status to `pass`, record the non-blocking findings, and continue the DAG.
+If required Acceptance Criteria are satisfied, treat the Ticket as successful, retain the non-blocking findings compactly, and return `pass` to the Workflow Session.
 
 Do not enter an optimization loop for optional improvements.
 
@@ -288,7 +315,7 @@ Do not enter an optimization loop for optional improvements.
 
 Treat this as local recovery for the current Ticket, not permission to rewrite the project plan or re-split the entire DAG.
 
-Allow one automatic targeted replan of the current Ticket:
+Allow one automatic targeted replan inside the Ticket Session:
 
 ```text
 first PLAN_INVALID
@@ -298,27 +325,46 @@ first PLAN_INVALID
 → Prove
 ```
 
-If the same Ticket reaches `PLAN_INVALID` again after that automatic replan, escalate it and stop automatic work on that Ticket.
+If the same Ticket reaches `PLAN_INVALID` again after that automatic replan, stop automatic work on that Ticket and return an escalated outcome to the Workflow Session.
 
 Do not proactively replan downstream Tickets. When they later become candidates for execution, their own validity gate determines whether upstream changes invalidated them.
 
-## 8. DAG Progress
+## 8. Workflow-Level Outcomes and DAG Progress
 
-For multiple Tickets, repeatedly derive the READY frontier from the graph and current statuses.
+The Workflow Session should receive only terminal Ticket outcomes such as:
+
+```text
+pass
+escalated
+```
+
+A compact outcome may also include:
+
+```text
+non-blocking findings
+artifact / commit / host session reference when available
+blocking reason when escalated
+```
+
+Do not forward the Ticket Session's full repair or verification history upstream.
+
+For multiple Tickets, repeatedly derive the READY frontier from the graph and current terminal statuses.
 
 DAG edges indicate legal concurrency, not mandatory concurrency.
 
-Run READY Tickets in parallel only when the host runtime provides safe execution isolation or concurrency-safe workspace handling. Otherwise execute them sequentially.
+Run READY Ticket Sessions in parallel only when the host runtime provides safe execution isolation or concurrency-safe workspace handling. Otherwise execute them sequentially.
 
 Do not mutate the user's Git workflow merely to create parallelism.
 
-If unfinished Tickets remain but none can run and no worker is making progress, stop and report the blocking condition instead of spinning.
+If unfinished Tickets remain but none can run and no Ticket Session is making progress, stop and report the blocking condition instead of spinning.
 
 For detailed DAG loading, readiness, parallelism, failure propagation, and no-progress handling, use `references/orchestration.md`.
 
 ## 9. Session Outcome
 
-Every Implementer, Reviewer / Verifier, and Replanner session MUST end with one compact Session Outcome returned to the Orchestrator.
+Every Ticket Session MUST return one compact terminal Session Outcome to the Workflow Session.
+
+Internal Implementer, Reviewer / Verifier, and Replanner steps may also use compact outcomes locally, but the Workflow Session should not receive those intermediate details.
 
 Do not end with a narrative recap or large Summary section.
 
@@ -333,19 +379,19 @@ what happens next
 
 Prefer one sentence and omit empty parts.
 
-Example:
+Successful Ticket example:
 
 ```text
-Simply: Ticket 03 meets AC1/2, but AC3 is blocked by a compatibility regression; next: repair AC3 only.
+Simply: Ticket 03 is independently verified and complete; next: unlock its dependents.
 ```
 
-Completion example:
+Escalated Ticket example:
 
 ```text
-Simply: Ticket 03 is independently verified; its dependents may now advance.
+Simply: Ticket 03 still fails AC3 after bounded repair because the compatibility assumption is invalid; next: keep dependents blocked and surface the escalation.
 ```
 
-Session Outcome is the Worker → Orchestrator handoff. Once state is updated, old outcomes are no longer authoritative.
+Once Workflow State is updated, old Ticket outcomes are no longer authoritative.
 
 ## 10. Safety and Scope
 
@@ -353,6 +399,6 @@ Do not alter the user's Git workflow unless explicitly requested.
 
 Do not automatically create branches, commits, stashes, resets, or worktrees merely to support this skill.
 
-Keep each Ticket context-isolated where practical. A new Ticket should normally receive a fresh Build context and a fresh Prove context rather than inheriting previous Ticket conversations.
+Keep each Ticket context-isolated. A new Ticket should normally receive a dedicated fresh execution Session, and each Prove should use a fresh independent verification context.
 
-Keep the workflow thin. Preserve only the coordination rules that independent agents cannot reliably infer across Tickets, sessions, repair rounds, and context compaction; leave ordinary engineering judgment to the host code agent.
+Keep the workflow thin. Preserve only the coordination rules that independent agents cannot reliably infer across Tickets, Sessions, repair rounds, and context compaction; leave ordinary engineering judgment to the host code agent.

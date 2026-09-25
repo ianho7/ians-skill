@@ -172,11 +172,11 @@ The Implementer may run tests and evals for development feedback, but must not b
 
 Authoritative verification should occur in an independent agent context whenever the host supports it.
 
-The Orchestrator should construct the Reviewer / Verifier context from the current Ticket, per-Ticket state, current implementation, relevant artifacts, and open blockers rather than forwarding the Implementer's full conversation.
+Within the dedicated Ticket Session, the Ticket Session's main agent should construct the Reviewer / Verifier context from the current Ticket, per-Ticket state, current implementation, relevant artifacts, and open blockers rather than forwarding the full Build conversation.
 
 The Reviewer should independently inspect or reproduce the evidence needed for acceptance when practical.
 
-If specialized verification needs another worker, route that need through the Orchestrator so state and workflow transitions remain centralized.
+If specialized verification needs another worker, keep that verification inside the Ticket Session. The Workflow Session should receive only the Ticket's compact terminal outcome, not intermediate verifier dialogue.
 
 After a repair, first verify the blocker, then reconsider the complete Acceptance Criteria of the current Ticket to catch regressions.
 
