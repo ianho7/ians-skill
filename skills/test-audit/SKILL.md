@@ -1,13 +1,13 @@
 ---
 name: test-audit
-description: "Invoke whenever writing, changing, reviewing, or sweeping tests. Authoring gate for new tests plus an audit workflow for low-value, implementation-coupled, duplicative tests and the test-only production seams they demand. Repository- and test-runner-agnostic."
+description: "Invoke whenever proposing, requiring, writing, changing, reviewing, or sweeping tests, including when task acceptance criteria or verification plans call for new or changed tests. Use the authoring gate for proposed tests and audit low-value, implementation-coupled, duplicative tests and test-only production seams. Repository- and test-runner-agnostic."
 ---
 
 # Test Audit
 
 Three modes, one value bar.
 
-- **Authoring mode** gates every new or changed test at write time.
+- **Authoring mode** checks proposed tests before they become task requirements; at write time, check only tests not previously assessed or whose design materially changed.
 - **Audit mode** runs focused sweeps for tests that re-assert source, duplicate stronger proof, couple behavior to implementation, or keep test-only production seams alive.
 - **Campaign mode** prunes one whole subsystem's test surface. Before starting a campaign, read [CAMPAIGN.md](CAMPAIGN.md).
 
@@ -24,7 +24,7 @@ Before applying this skill:
 
 ## Authoring gate
 
-Before adding any test, answer five questions; a missing answer means do not add it yet:
+Before proposing or requiring a new or changed test, or adding one during implementation, answer five questions; a missing answer means do not require or add that test yet:
 
 1. What requirement, user-visible outcome, invariant, or independent contract defines the expected behavior?
    - Derive the expectation independently from the implementation under test. Prefer a requirement, acceptance criterion, public contract, protocol, dependency contract, prior regression, or other external oracle.
