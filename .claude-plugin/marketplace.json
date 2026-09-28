@@ -14,6 +14,7 @@
                         "source":  "./",
                         "strict":  false,
                         "skills":  [
+                                       ".skills/acceptance-design",
                                        ".skills/benchmark-fixture-replay",
                                        ".skills/bounded-diagnosis-loop",
                                        ".skills/case-study-writing",
